@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Project } from '../types/user';
+import { Project, ProjectFile } from '../types/user';
 
 interface User {
   id: string;
@@ -30,6 +30,8 @@ interface AuthContextType {
   addProject: (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateProject: (id: string, projectData: Partial<Project>) => void;
   deleteProject: (id: string) => void;
+  addFileToProject: (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>) => void;
+  removeFileFromProject: (projectId: string, fileId: string) => void;
   isAuthenticated: boolean;
 }
 
@@ -223,6 +225,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deleteProject = (id: string) => {
     setProjects(prev => prev.filter(project => project.id !== id));
   };
+
+  const addFileToProject = (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>) => {
+    const newFile: ProjectFile = {
+      ...fileData,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      uploadedAt: new Date()
+    };
+
+    setProjects(prev => prev.map(project => 
+      project.id === projectId 
+        ? { 
+            ...project, 
+            files: [...project.files, newFile],
+            updatedAt: new Date()
+          }
+        : project
+    ));
+  };
+
+  const removeFileFromProject = (projectId: string, fileId: string) => {
+    setProjects(prev => prev.map(project => 
+      project.id === projectId 
+        ? { 
+            ...project, 
+            files: project.files.filter(file => file.id !== fileId),
+            updatedAt: new Date()
+          }
+        : project
+    ));
+  };
+
   const value: AuthContextType = {
     user,
     users,
@@ -236,6 +269,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addProject,
     updateProject,
     deleteProject,
+    addFileToProject,
+    removeFileFromProject,
     isAuthenticated: !!user
   };
 

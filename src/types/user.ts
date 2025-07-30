@@ -32,11 +32,11 @@ export interface Project {
 export interface ProjectFile {
   id: string;
   name: string;
-  type: 'photo' | 'design' | 'document';
-  url: string;
+  type: string;
+  size: number;
+  preview?: string;
   uploadedBy: User;
   uploadedAt: Date;
-  size: number;
 }
 
 export interface Comment {
