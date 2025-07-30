@@ -19,8 +19,8 @@ export interface Project {
   description: string;
   status: 'planning' | 'in-progress' | 'review' | 'completed';
   manager?: User;
-  photographer?: User;
-  designer?: User;
+  photographers: User[];
+  designers: User[];
   deadline: Date;
   createdAt: Date;
   updatedAt: Date;

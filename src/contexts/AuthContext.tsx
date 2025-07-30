@@ -85,8 +85,8 @@ const mockProjects: Project[] = [
     description: 'Создание премиального свадебного альбома для молодоженов',
     status: 'in-progress',
     manager: mockUsers[0], // admin
-    photographer: mockUsers[1], // John Doe
-    designer: mockUsers[2], // Jane Smith
+    photographers: [mockUsers[1]], // John Doe
+    designers: [mockUsers[2]], // Jane Smith
     deadline: new Date('2024-03-15'),
     createdAt: new Date('2024-02-01'),
     updatedAt: new Date('2024-02-10'),
@@ -101,7 +101,8 @@ const mockProjects: Project[] = [
     description: 'Семейная фотосессия с детьми для создания памятного альбома',
     status: 'planning',
     manager: mockUsers[0],
-    photographer: mockUsers[1],
+    photographers: [mockUsers[1]],
+    designers: [],
     deadline: new Date('2024-03-20'),
     createdAt: new Date('2024-02-05'),
     updatedAt: new Date('2024-02-05'),
@@ -116,8 +117,8 @@ const mockProjects: Project[] = [
     description: 'Корпоративная фотосессия и создание презентационного альбома',
     status: 'review',
     manager: mockUsers[0],
-    photographer: mockUsers[1],
-    designer: mockUsers[2],
+    photographers: [mockUsers[1]],
+    designers: [mockUsers[2]],
     deadline: new Date('2024-02-28'),
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-02-12'),

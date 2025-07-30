@@ -237,8 +237,8 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
       status: project.status,
       deadline: project.deadline.toISOString().split('T')[0],
       manager: project.manager,
-      photographer: project.photographer,
-      designer: project.designer
+      photographers: project.photographers,
+      designers: project.designers
     });
     setIsEditing(true);
   };
@@ -247,9 +247,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     const updateData: Partial<Project> = {
       ...editData,
       deadline: editData.deadline ? new Date(editData.deadline) : project.deadline,
-      manager: editData.manager ? users.find(u => u.id === (editData.manager as any)?.id || editData.manager) : undefined,
-      photographer: editData.photographer ? users.find(u => u.id === (editData.photographer as any)?.id || editData.photographer) : undefined,
-      designer: editData.designer ? users.find(u => u.id === (editData.designer as any)?.id || editData.designer) : undefined
+      manager: editData.manager ? users.find(u => u.id === (editData.manager as any)?.id || editData.manager) : project.manager
     };
 
     updateProject(projectId, updateData);
@@ -302,6 +300,45 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePhotographerToggle = (photographerId: string) => {
+    setEditData(prev => {
+      const currentPhotographers = prev.photographers || project.photographers;
+      const isSelected = currentPhotographers.some(p => p.id === photographerId);
+      
+      if (isSelected) {
+        return {
+          ...prev,
+          photographers: currentPhotographers.filter(p => p.id !== photographerId)
+        };
+      } else {
+        const photographer = users.find(u => u.id === photographerId);
+        return {
+          ...prev,
+          photographers: photographer ? [...currentPhotographers, photographer] : currentPhotographers
+        };
+      }
+    });
+  };
+
+  const handleDesignerToggle = (designerId: string) => {
+    setEditData(prev => {
+      const currentDesigners = prev.designers || project.designers;
+      const isSelected = currentDesigners.some(d => d.id === designerId);
+      
+      if (isSelected) {
+        return {
+          ...prev,
+          designers: currentDesigners.filter(d => d.id !== designerId)
+        };
+      } else {
+        const designer = users.find(u => u.id === designerId);
+        return {
+          ...prev,
+          designers: designer ? [...currentDesigners, designer] : currentDesigners
+        };
+      }
+    });
+  };
   const statusInfo = getStatusInfo(project.status);
   const StatusIcon = statusInfo.icon;
 
@@ -431,7 +468,9 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Менеджер</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Менеджер
+                  </label>
                   {isEditing ? (
                     <select
                       value={(editData.manager as any)?.id || ''}
@@ -452,43 +491,59 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Фотограф</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Фотографы
+                  </label>
                   {isEditing ? (
-                    <select
-                      value={(editData.photographer as any)?.id || ''}
-                      onChange={(e) => handleChange('photographer', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Не назначен</option>
+                    <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
                       {photographers.map(photographer => (
-                        <option key={photographer.id} value={photographer.id}>{photographer.name}</option>
+                        <label key={photographer.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(editData.photographers || project.photographers).some(p => p.id === photographer.id)}
+                            onChange={() => handlePhotographerToggle(photographer.id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{photographer.name}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   ) : (
                     <div className="flex items-center text-gray-600">
                       <Camera className="h-4 w-4 mr-2" />
-                      {project.photographer?.name || 'Не назначен'}
+                      {project.photographers.length > 0 
+                        ? project.photographers.map(p => p.name).join(', ')
+                        : 'Не назначены'
+                      }
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Дизайнер</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Дизайнеры
+                  </label>
                   {isEditing ? (
-                    <select
-                      value={(editData.designer as any)?.id || ''}
-                      onChange={(e) => handleChange('designer', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Не назначен</option>
+                    <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
                       {designers.map(designer => (
-                        <option key={designer.id} value={designer.id}>{designer.name}</option>
+                        <label key={designer.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(editData.designers || project.designers).some(d => d.id === designer.id)}
+                            onChange={() => handleDesignerToggle(designer.id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{designer.name}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   ) : (
                     <div className="flex items-center text-gray-600">
                       <Palette className="h-4 w-4 mr-2" />
-                      {project.designer?.name || 'Не назначен'}
+                      {project.designers.length > 0 
+                        ? project.designers.map(d => d.name).join(', ')
+                        : 'Не назначены'
+                      }
                     </div>
                   )}
                 </div>

@@ -31,8 +31,8 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
     albumType: '',
     description: '',
     managerId: user?.id || '',
-    photographerId: '',
-    designerId: '',
+    photographerIds: [] as string[],
+    designerIds: [] as string[],
     deadline: ''
   });
   const [loading, setLoading] = useState(false);
@@ -55,8 +55,8 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
     setLoading(true);
 
     const manager = users.find(u => u.id === formData.managerId);
-    const photographer = users.find(u => u.id === formData.photographerId);
-    const designer = users.find(u => u.id === formData.designerId);
+    const photographers = users.filter(u => formData.photographerIds.includes(u.id));
+    const designers = users.filter(u => formData.designerIds.includes(u.id));
 
     const projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
       title: formData.title,
@@ -64,8 +64,8 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
       description: formData.description,
       status: 'planning',
       manager: manager || undefined,
-      photographer: photographer || undefined,
-      designer: designer || undefined,
+      photographers: photographers,
+      designers: designers,
       deadline: new Date(formData.deadline),
       photosCount: 0,
       designsCount: 0,
@@ -79,8 +79,8 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
       albumType: '',
       description: '',
       managerId: user?.id || '',
-      photographerId: '',
-      designerId: '',
+      photographerIds: [],
+      designerIds: [],
       deadline: ''
     });
     onClose();
@@ -93,6 +93,14 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
     }));
   };
 
+  const handleMultiSelect = (field: 'photographerIds' | 'designerIds', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].includes(value) 
+        ? prev[field].filter(id => id !== value)
+        : [...prev[field], value]
+    }));
+  };
   if (!isOpen) return null;
 
   return (
@@ -178,37 +186,41 @@ function CreateProjectModal({ isOpen, onClose, onSave }: CreateProjectModalProps
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Фотограф
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Фотографы
               </label>
-              <select
-                name="photographerId"
-                value={formData.photographerId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Выберите фотографа</option>
+              <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
                 {photographers.map(photographer => (
-                  <option key={photographer.id} value={photographer.id}>{photographer.name}</option>
+                  <label key={photographer.id} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.photographerIds.includes(photographer.id)}
+                      onChange={() => handleMultiSelect('photographerIds', photographer.id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{photographer.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Дизайнер
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Дизайнеры
               </label>
-              <select
-                name="designerId"
-                value={formData.designerId}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Выберите дизайнера</option>
+              <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
                 {designers.map(designer => (
-                  <option key={designer.id} value={designer.id}>{designer.name}</option>
+                  <label key={designer.id} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.designerIds.includes(designer.id)}
+                      onChange={() => handleMultiSelect('designerIds', designer.id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{designer.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
@@ -264,9 +276,9 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
     
     // Фильтрация по роли пользователя
     if (user?.role === 'photographer') {
-      return matchesSearch && matchesStatus && project.photographer?.id === user.id;
+      return matchesSearch && matchesStatus && project.photographers.some(p => p.id === user.id);
     } else if (user?.role === 'designer') {
-      return matchesSearch && matchesStatus && project.designer?.id === user.id;
+      return matchesSearch && matchesStatus && project.designers.some(d => d.id === user.id);
     }
     
     return matchesSearch && matchesStatus;
@@ -360,13 +372,23 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
                     </div>
                     <div className="flex items-center space-x-1">
                       <Camera className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-500">Фотограф:</span>
-                      <span className="text-gray-600">{project.photographer?.name || 'Не назначен'}</span>
+                      <span className="text-gray-500">Фотографы:</span>
+                      <span className="text-gray-600">
+                        {project.photographers.length > 0 
+                          ? project.photographers.map(p => p.name).join(', ')
+                          : 'Не назначены'
+                        }
+                      </span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Palette className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-500">Дизайнер:</span>
-                      <span className="text-gray-600">{project.designer?.name || 'Не назначен'}</span>
+                      <span className="text-gray-500">Дизайнеры:</span>
+                      <span className="text-gray-600">
+                        {project.designers.length > 0 
+                          ? project.designers.map(d => d.name).join(', ')
+                          : 'Не назначены'
+                        }
+                      </span>
                     </div>
                   </div>
 

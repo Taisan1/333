@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, X, Camera, FileText, Image } from 'lucide-react';
+import { Upload, X, Camera, FileText, Image, Download, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
+import { ProjectFile } from '../../types/user';
 
 interface UploadedFile {
   id: string;
@@ -14,10 +15,12 @@ interface UploadedFile {
 }
 
 export function UploadArea() {
-  const { projects } = useAuth();
+  const { user, projects, addFileToProject, removeFileFromProject } = useAuth();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
+
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -40,6 +43,11 @@ export function UploadArea() {
   }, []);
 
   const handleFiles = (fileList: File[]) => {
+    if (!selectedProject) {
+      alert('Пожалуйста, выберите проект перед загрузкой файлов');
+      return;
+    }
+
     const newFiles: UploadedFile[] = fileList.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
@@ -66,6 +74,16 @@ export function UploadArea() {
         setFiles(prev => prev.map(f => 
           f.id === file.id ? { ...f, progress: 100 } : f
         ));
+        
+        // Добавляем файл в проект после завершения загрузки
+        const fileData: Omit<ProjectFile, 'id' | 'uploadedAt'> = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          preview: file.preview,
+          uploadedBy: user!
+        };
+        addFileToProject(selectedProject, fileData);
       }, 2000);
     });
   };
@@ -80,6 +98,11 @@ export function UploadArea() {
     });
   };
 
+  const removeProjectFile = (fileId: string) => {
+    if (selectedProject) {
+      removeFileFromProject(selectedProject, fileId);
+    }
+  };
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -224,6 +247,61 @@ export function UploadArea() {
                     >
                       <X className="h-4 w-4" />
                     </button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Файлы проекта */}
+      {selectedProjectData && selectedProjectData.files.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Файлы проекта "{selectedProjectData.title}"</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {selectedProjectData.files.map(file => {
+                const FileIcon = getFileIcon(file.type);
+                return (
+                  <div key={file.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        {file.preview ? (
+                          <img 
+                            src={file.preview} 
+                            alt={file.name}
+                            className="w-12 h-12 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <FileIcon className="h-6 w-6 text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{file.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          {formatFileSize(file.size)} • Загружен {file.uploadedBy.name} • {file.uploadedAt.toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button size="sm" variant="outline">
+                        <Download className="h-4 w-4 mr-1" />
+                        Скачать
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => removeProjectFile(file.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
