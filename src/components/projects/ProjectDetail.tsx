@@ -13,12 +13,171 @@ import {
   Upload,
   Image,
   FileText,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { Project } from '../../types/user';
+import { Project, ProjectFile } from '../../types/user';
+
+interface FileUploadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onUpload: (files: File[]) => void;
+  projectId: string;
+}
+
+function FileUploadModal({ isOpen, onClose, onUpload }: FileUploadModalProps) {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleUpload = () => {
+    if (selectedFiles.length > 0) {
+      onUpload(selectedFiles);
+      setSelectedFiles([]);
+      onClose();
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Загрузить файлы</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Upload Area */}
+          <div
+            className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+              dragActive 
+                ? 'border-blue-500 bg-blue-50' 
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              accept="image/*,video/*,.pdf,.doc,.docx"
+            />
+            
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <div className="bg-blue-100 p-4 rounded-full">
+                  <Upload className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Перетащите файлы сюда или нажмите для выбора
+                </h3>
+                <p className="text-gray-600 mt-1">
+                  Поддерживаются изображения, видео и документы до 10MB
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Selected Files */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-900">Выбранные файлы ({selectedFiles.length})</h3>
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {file.type.startsWith('image/') ? (
+                        <Image className="h-8 w-8 text-blue-500" />
+                      ) : (
+                        <FileText className="h-8 w-8 text-gray-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{file.name}</h4>
+                      <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={onClose}>
+              Отмена
+            </Button>
+            <Button 
+              onClick={handleUpload} 
+              disabled={selectedFiles.length === 0}
+            >
+              Загрузить файлы ({selectedFiles.length})
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface ProjectDetailProps {
   projectId: string;
@@ -26,9 +185,10 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
-  const { user, users, projects, updateProject } = useAuth();
+  const { user, users, projects, updateProject, addFileToProject, removeFileFromProject } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Project>>({});
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const project = projects.find(p => p.id === projectId);
 
@@ -102,6 +262,42 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     setEditData({});
   };
 
+  const handleFileUpload = (files: File[]) => {
+    files.forEach(file => {
+      const fileData: Omit<ProjectFile, 'id' | 'uploadedAt'> = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+        uploadedBy: user!
+      };
+      
+      addFileToProject(projectId, fileData);
+    });
+  };
+
+  const handleFileDelete = (fileId: string) => {
+    const file = project.files.find(f => f.id === fileId);
+    if (file?.preview) {
+      URL.revokeObjectURL(file.preview);
+    }
+    removeFileFromProject(projectId, fileId);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return Image;
+    if (type.startsWith('video/')) return Camera;
+    return FileText;
+  };
+
   const handleChange = (field: string, value: any) => {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
@@ -109,15 +305,8 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
   const statusInfo = getStatusInfo(project.status);
   const StatusIcon = statusInfo.icon;
 
-  // Mock files for demonstration
-  const mockFiles = [
-    { id: '1', name: 'wedding_photo_001.jpg', type: 'image', size: '2.4 MB', uploadedAt: new Date(), uploadedBy: 'John Doe' },
-    { id: '2', name: 'wedding_photo_002.jpg', type: 'image', size: '2.1 MB', uploadedAt: new Date(), uploadedBy: 'John Doe' },
-    { id: '3', name: 'album_design_v1.pdf', type: 'document', size: '5.2 MB', uploadedAt: new Date(), uploadedBy: 'Jane Smith' },
-    { id: '4', name: 'client_requirements.docx', type: 'document', size: '156 KB', uploadedAt: new Date(), uploadedBy: 'Admin' }
-  ];
-
   return (
+    <>
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -312,7 +501,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Файлы проекта</CardTitle>
-                <Button size="sm">
+                <Button size="sm" onClick={() => setShowUploadModal(true)}>
                   <Upload className="h-4 w-4 mr-2" />
                   Загрузить файлы
                 </Button>
@@ -320,35 +509,60 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockFiles.map(file => (
-                  <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                {project.files.map(file => {
+                  const FileIcon = getFileIcon(file.type);
+                  return (
+                  <div key={file.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        {file.type === 'image' ? (
-                          <Image className="h-8 w-8 text-blue-500" />
+                        {file.preview ? (
+                          <img 
+                            src={file.preview} 
+                            alt={file.name}
+                            className="w-12 h-12 object-cover rounded-lg"
+                          />
                         ) : (
-                          <FileText className="h-8 w-8 text-gray-500" />
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <FileIcon className="h-6 w-6 text-gray-500" />
+                          </div>
                         )}
                       </div>
                       <div>
                         <h4 className="font-medium text-gray-900">{file.name}</h4>
                         <p className="text-sm text-gray-500">
-                          {file.size} • Загружен {file.uploadedBy} • {file.uploadedAt.toLocaleDateString('ru-RU')}
+                          {formatFileSize(file.size)} • Загружен {file.uploadedBy.name} • {file.uploadedAt.toLocaleDateString('ru-RU')}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline">Скачать</Button>
-                      <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+                      <Button size="sm" variant="outline">
+                        <Download className="h-4 w-4 mr-1" />
+                        Скачать
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleFileDelete(file.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                ))}
-                {mockFiles.length === 0 && (
+                  );
+                })}
+                {project.files.length === 0 && (
                   <div className="text-center py-8">
                     <Upload className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">Файлы еще не загружены</p>
+                    <p className="text-gray-500 mb-3">Файлы еще не загружены</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowUploadModal(true)}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Загрузить первые файлы
+                    </Button>
                   </div>
                 )}
               </div>
@@ -374,7 +588,7 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Файлов</span>
-                <span className="font-semibold">{mockFiles.length}</span>
+                <span className="font-semibold">{project.files.length}</span>
               </div>
             </CardContent>
           </Card>
@@ -411,5 +625,14 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
         </div>
       </div>
     </div>
+
+      {/* File Upload Modal */}
+      <FileUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUpload={handleFileUpload}
+        projectId={projectId}
+      />
+    </>
   );
 }
